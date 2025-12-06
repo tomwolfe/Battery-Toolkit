@@ -40,8 +40,18 @@ private extension BTDaemonXPCServer {
             newConnection.exportedInterface = NSXPCInterface(with: BTDaemonCommProtocol.self)
             newConnection.exportedObject = BTDaemonXPCServer.daemonComm
 
+            // Add error handling for the connection
+            newConnection.interruptionHandler = {
+                os_log("XPC server connection interrupted")
+            }
+
+            newConnection.invalidationHandler = {
+                os_log("XPC server connection invalidated")
+            }
+
             newConnection.resume()
 
+            os_log("XPC server connection accepted")
             return true
         }
     }

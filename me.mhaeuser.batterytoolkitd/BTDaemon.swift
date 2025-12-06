@@ -48,7 +48,15 @@ internal enum BTDaemon {
     }
     
     private static func start() throws {
-        try BTPowerEvents.start()
+        do {
+            try BTPowerEvents.start()
+        } catch let error as BTError {
+            os_log("Power events start failed with BTError: %s", error.localizedDescription)
+            throw error
+        } catch {
+            os_log("Power events start failed with unexpected error: %@", String(describing: error))
+            throw error
+        }
 
         let callback: IOServiceInterestCallback = { refCon, service, messageType, messageArgument in
             if messageType == PowerEvents.kIOMessageCanSystemSleep ||
@@ -58,14 +66,18 @@ internal enum BTDaemon {
                     Int(bitPattern: messageArgument)
                 )
             } else if messageType == PowerEvents.kIOMessageSystemHasPoweredOn {
-                BTPowerEvents.wakeFromSleep()
+                do {
+                    BTPowerEvents.wakeFromSleep()
+                } catch {
+                    os_log("Error handling wake from sleep: %@", String(describing: error))
+                }
             }
         }
 
         let success = PowerEvents.register(callback: callback)
         guard success else {
             os_log("Error registering system power event")
-            exit(-1)
+            throw BTError.operationFailed
         }
     }
 
@@ -107,7 +119,7 @@ internal enum BTDaemon {
         self.uniqueId = CSIdentification.getUniqueIdSelf()
 
         BTSettings.readDefaults()
-        
+
         GlobalSleep.restoreOnStart()
 
         do {
@@ -120,6 +132,7 @@ internal enum BTDaemon {
                 queue: DispatchQueue.main
             )
             termSource.setEventHandler {
+                os_log("Received SIGTERM signal, gracefully shutting down")
                 BTPowerEvents.exit()
                 exit(0)
             }
@@ -140,21 +153,24 @@ internal enum BTDaemon {
                 timeout: 300
             )
             if status != errSecSuccess {
-                os_log("Error adding manage right: \(status)")
+                os_log("Error adding manage right: \(status, privacy: .public)")
             }
         } catch BTError.unsupported {
+            os_log("Machine is unsupported, running daemon in limited mode")
             //
             // Still run the XPC server if the machine is unsupported to cleanly
             // uninstall the daemon, but don't initialize the rest of the stack.
             //
             self.supported = false
         } catch {
-            os_log("Power events start failed")
+            os_log("Power events start failed: %@", String(describing: error))
             exit(-1)
         }
 
+        os_log("Starting daemon XPC server")
         BTDaemonXPCServer.start()
 
+        os_log("Daemon started successfully")
         dispatchMain()
     }
 }

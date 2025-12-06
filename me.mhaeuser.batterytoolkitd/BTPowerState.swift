@@ -122,6 +122,7 @@ internal enum BTPowerState {
 
     static func disableCharging(percent: UInt8) -> Bool {
         guard !self.chargingDisabled else {
+            os_log("Charging already disabled, skipping")
             return true
         }
 
@@ -131,6 +132,7 @@ internal enum BTPowerState {
             return false
         }
 
+        os_log("Successfully disabled charging at %d%%", percent)
         self.chargingDisabled = true
 
         if BTSettings.magSafeSync {
@@ -144,6 +146,7 @@ internal enum BTPowerState {
 
     static func enableCharging(percent: UInt8) -> Bool {
         guard self.chargingDisabled else {
+            os_log("Charging already enabled, skipping")
             return true
         }
 
@@ -153,6 +156,7 @@ internal enum BTPowerState {
             return false
         }
 
+        os_log("Successfully enabled charging at %d%%", percent)
         GlobalSleep.disable()
 
         self.chargingDisabled = false
@@ -166,9 +170,11 @@ internal enum BTPowerState {
 
     static func disablePowerAdapter() -> Bool {
         guard !self.powerDisabled else {
+            os_log("Power adapter already disabled, skipping")
             return true
         }
 
+        os_log("Attempting to disable power adapter")
         self.disableAdapterSleep()
 
         let success = SMCComm.Power.disablePowerAdapter()
@@ -178,6 +184,7 @@ internal enum BTPowerState {
             return false
         }
 
+        os_log("Successfully disabled power adapter")
         if BTSettings.magSafeSync {
             _ = SMCComm.MagSafe.setOff()
         }
@@ -188,15 +195,18 @@ internal enum BTPowerState {
 
     static func enablePowerAdapter() -> Bool {
         guard self.powerDisabled else {
+            os_log("Power adapter already enabled, skipping")
             return true
         }
 
+        os_log("Attempting to enable power adapter")
         let success = SMCComm.Power.enablePowerAdapter()
         guard success else {
             os_log("Failed to enable power adapter")
             return false
         }
 
+        os_log("Successfully enabled power adapter")
         self.powerDisabled = false
 
         if BTSettings.magSafeSync {

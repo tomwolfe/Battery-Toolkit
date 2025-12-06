@@ -67,6 +67,56 @@ internal enum BTLocalization {
             comment: "Prompt caption informing the user that they are not authorized to perform a specific operation"
         )
 
+        static let connectionTimeoutMessage = NSLocalizedString(
+            "Connection to service timed out.",
+            comment: "Prompt caption informing the user that the connection to the service timed out"
+        )
+
+        static let connectionTimeoutInfo = NSLocalizedString(
+            "The connection to the background service timed out. Please try again later.",
+            comment: "Prompt text explaining the connection timeout"
+        )
+
+        static let invalidResponseMessage = NSLocalizedString(
+            "Service returned an invalid response.",
+            comment: "Prompt caption informing the user that the service returned an invalid response"
+        )
+
+        static let invalidResponseInfo = NSLocalizedString(
+            "The background service returned an unexpected response. This may indicate a communication issue.",
+            comment: "Prompt text explaining the invalid response"
+        )
+
+        static let operationFailedMessage = NSLocalizedString(
+            "Operation failed to complete.",
+            comment: "Prompt caption informing the user that the operation failed"
+        )
+
+        static let operationFailedInfo = NSLocalizedString(
+            "The requested operation could not be completed. Please try again.",
+            comment: "Prompt text explaining that the operation failed"
+        )
+
+        static let serviceUnavailableMessage = NSLocalizedString(
+            "Required service is currently unavailable.",
+            comment: "Prompt caption informing the user that the required service is unavailable"
+        )
+
+        static let serviceUnavailableInfo = NSLocalizedString(
+            "The background service needed to perform this operation is currently unavailable.",
+            comment: "Prompt text explaining that the required service is unavailable"
+        )
+
+        static let malformedDataMessage = NSLocalizedString(
+            "Received malformed data from service.",
+            comment: "Prompt caption informing the user that malformed data was received from the service"
+        )
+
+        static let malformedDataInfo = NSLocalizedString(
+            "The service returned data in an unexpected format. This may indicate a compatibility issue.",
+            comment: "Prompt text explaining malformed data from service"
+        )
+
         enum Daemon {
             static let requiredInfo = NSLocalizedString(
                 "To manage the power state of your Mac, Battery Toolkit needs to run in the background.",

@@ -22,7 +22,7 @@ internal enum BTDaemonXPCClient {
 
     static func getUniqueId() async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
-            self.executeDaemonRetry(continuation: continuation) { daemon in
+            self.executeDaemonRetryWithBackoff(continuation: continuation) { daemon in
                 daemon.getUniqueId { data in
                     guard let data = data else {
                         continuation.resume(throwing: BTError.malformedData)
@@ -37,7 +37,7 @@ internal enum BTDaemonXPCClient {
 
     static func getState() async throws -> [String: NSObject & Sendable] {
         try await withCheckedThrowingContinuation { continuation in
-            self.executeDaemonRetry(continuation: continuation) { daemon in
+            self.executeDaemonRetryWithBackoff(continuation: continuation) { daemon in
                 daemon.getState { state in
                     continuation.resume(returning: state)
                 }
@@ -121,7 +121,7 @@ internal enum BTDaemonXPCClient {
 
     static func getSettings() async throws -> [String: NSObject & Sendable] {
         try await withCheckedThrowingContinuation { continuation in
-            self.executeDaemonRetry(continuation: continuation) { daemon in
+            self.executeDaemonRetryWithBackoff(continuation: continuation) { daemon in
                 daemon.getSettings { settings in
                     continuation.resume(returning: settings)
                 }
@@ -132,7 +132,7 @@ internal enum BTDaemonXPCClient {
     static func setSettings(settings: [String: NSObject & Sendable]) async throws {
         let authData = try await BTAppXPCClient.getManageAuthorization()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            self.executeDaemonManageRetry(continuation: continuation) { daemon in
+            self.executeDaemonRetryWithBackoff(continuation: continuation) { daemon in
                 daemon.setSettings(
                     authData: authData,
                     settings: settings,
@@ -144,7 +144,7 @@ internal enum BTDaemonXPCClient {
 
     static func prepareUpdate() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            self.executeDaemonRetry(continuation: continuation) { daemon in
+            self.executeDaemonRetryWithBackoff(continuation: continuation) { daemon in
                 daemon.execute(
                     authData: nil,
                     command: BTDaemonCommCommand.prepareUpdate.rawValue,
@@ -171,7 +171,7 @@ internal enum BTDaemonXPCClient {
 
     static func removeLegacyHelperFiles(authData: Data) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            self.executeDaemonRetry(continuation: continuation) { daemon in
+            self.executeDaemonRetryWithBackoff(continuation: continuation) { daemon in
                 daemon.execute(
                     authData: authData,
                     command: BTDaemonCommCommand.removeLegacyHelperFiles.rawValue,
@@ -205,8 +205,17 @@ internal enum BTDaemonXPCClient {
     }
     
     private static func connectDaemon() -> NSXPCConnection {
-        if let connect = self.connect {
-            return connect
+        // Check if existing connection is still valid
+        if let connect = self.connect, connect.invalidationReason == nil {
+            // Check if the connection is still responding
+            if connect.remoteObjectInterface != nil {
+                return connect
+            }
+        }
+
+        // Disconnect any invalid connection
+        if let connect = self.connect, connect.invalidationReason != nil {
+            connect.invalidate()
         }
 
         let connect = NSXPCConnection(
@@ -216,6 +225,16 @@ internal enum BTDaemonXPCClient {
         connect.remoteObjectInterface = NSXPCInterface(
             with: BTDaemonCommProtocol.self
         )
+
+        // Add better error handling to the connection
+        connect.invalidationHandler = { [weak connect] in
+            os_log("XPC client connection invalidated: %@",
+                   connect?.invalidationReason ?? "Unknown reason")
+        }
+
+        connect.interruptionHandler = {
+            os_log("XPC client connection interrupted, will attempt to reconnect when needed")
+        }
 
         BTXPCValidation.protectDaemon(connection: connect)
 
@@ -247,8 +266,10 @@ internal enum BTDaemonXPCClient {
             os_log("Retrying...")
             Task { @BTBackgroundActor in
                 self.disconnectDaemon()
+                // Wait a bit before retry to allow system to stabilize
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
                 self.executeDaemon(command: command) { error in
-                    os_log("XPC client remote error: \(error, privacy: .public))")
+                    os_log("XPC client remote error after retry: \(error, privacy: .public))")
                     continuation.resume(throwing: BTError.commFailed)
                 }
             }
@@ -260,6 +281,38 @@ internal enum BTDaemonXPCClient {
         command: @BTBackgroundActor @escaping @Sendable (BTDaemonCommProtocol) -> Void
     ) {
         self.executeDaemonRetry(continuation: continuation, command: command)
+    }
+
+    /// Enhanced retry mechanism with exponential backoff for critical operations
+    private static func executeDaemonRetryWithBackoff<T>(
+        continuation: CheckedContinuation<T, any Error>,
+        maxRetries: Int = 3,
+        currentRetry: Int = 0,
+        command: @BTBackgroundActor @escaping @Sendable (BTDaemonCommProtocol) -> Void
+    ) {
+        self.executeDaemon(command: command) { error in
+            if currentRetry < maxRetries {
+                os_log("XPC client remote error: \(error, privacy: .public)) - Attempt %d of %d",
+                       currentRetry + 1, maxRetries + 1)
+
+                Task { @BTBackgroundActor in
+                    self.disconnectDaemon()
+                    // Exponential backoff: wait 0.5s, 1s, 2s for retries
+                    let delay = UInt64(pow(2.0, Double(currentRetry)) * 500_000_000)
+                    try? await Task.sleep(nanoseconds: delay)
+
+                    self.executeDaemonRetryWithBackoff(
+                        continuation: continuation,
+                        maxRetries: maxRetries,
+                        currentRetry: currentRetry + 1,
+                        command: command
+                    )
+                }
+            } else {
+                os_log("XPC client remote error after %d retries: \(error, privacy: .public))", maxRetries + 1)
+                continuation.resume(throwing: BTError.connectionTimeout)
+            }
+        }
     }
 
     private static func runExecute(

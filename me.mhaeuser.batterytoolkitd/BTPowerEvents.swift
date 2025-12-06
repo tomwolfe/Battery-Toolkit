@@ -20,21 +20,25 @@ internal enum BTPowerEvents {
     static func start() throws {
         let smcSuccess = SMCComm.start()
         guard smcSuccess else {
-            throw BTError.unknown
+            os_log("SMC communication failed to start")
+            throw BTError.serviceUnavailable
         }
 
         let supported = SMCComm.Power.supported()
         guard supported else {
-            os_log("Machine is unsupported")
+            os_log("Machine is unsupported - required SMC keys not available")
             SMCComm.stop()
             throw BTError.unsupported
         }
 
         let registerSuccess = self.registerLimitedPowerHandler()
         guard registerSuccess else {
+            os_log("Failed to register power event handlers")
             SMCComm.stop()
-            throw BTError.unknown
+            throw BTError.operationFailed
         }
+
+        os_log("Power events started successfully")
     }
 
     private static func restoreState() {
@@ -99,21 +103,25 @@ internal enum BTPowerEvents {
     }
 
     static func chargeToLimit() -> Bool {
+        os_log("Setting charging mode to charge-to-limit (max: %d%%)", BTSettings.maxCharge)
         self.chargingMode = .toLimit
         return self.enableBelowLimitMode(limit: BTSettings.maxCharge)
     }
 
     static func disableCharging(percent: UInt8) -> Bool {
+        os_log("Disabling charging at %d%%", percent)
         self.chargingMode = .standard
         return BTPowerState.disableCharging(percent: percent)
     }
 
     static func disableCharging() -> Bool {
         let (percent, _, _) = BTPowerState.getPercentRemaining()
+        os_log("Disabling charging (current: %d%%)", percent)
         return self.disableCharging(percent: percent)
     }
 
     static func chargeToFull() -> Bool {
+        os_log("Setting charging mode to charge-to-full")
         self.chargingMode = .toFull
         return self.enableBelowLimitMode(limit: 100)
     }
