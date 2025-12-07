@@ -30,23 +30,14 @@ internal enum BTErrorHandler {
         case .notAuthorized:
             BTAppPrompts.promptNotAuthorized(window: window)
 
-        case .commFailed:
+        case .commFailed, .malformedData, .invalidResponse, .serviceUnavailable:
             BTAppPrompts.promptDaemonCommFailed(window: window)
 
         case .connectionTimeout:
             BTAppPrompts.promptConnectionTimeout(window: window)
 
-        case .invalidResponse:
-            BTAppPrompts.promptInvalidResponse(window: window)
-
         case .operationFailed:
             BTAppPrompts.promptOperationFailed(window: window, message: error.localizedDescription)
-
-        case .serviceUnavailable:
-            BTAppPrompts.promptServiceUnavailable(window: window)
-
-        case .malformedData:
-            BTAppPrompts.promptMalformedData(window: window)
 
         case .unsupported:
             Task { await BTAppPrompts.promptMachineUnsupported() }

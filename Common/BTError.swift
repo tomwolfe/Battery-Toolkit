@@ -31,19 +31,19 @@ internal enum BTError: UInt8, Error {
         case .notAuthorized:
             return "Permission denied - authorization required"
         case .commFailed:
-            return "Communication with service failed"
+            return "Communication with Background Activity failed"
         case .malformedData:
-            return "Received malformed data from service"
+            return "Communication issue with Background Activity"
         case .unsupported:
             return "This operation is not supported on your device"
         case .connectionTimeout:
-            return "Connection to service timed out"
+            return "Connection to Background Activity timed out"
         case .invalidResponse:
-            return "Service returned invalid response"
+            return "Communication issue with Background Activity"
         case .operationFailed:
             return "Operation failed to complete"
         case .serviceUnavailable:
-            return "Required service is currently unavailable"
+            return "Communication issue with Background Activity"
         }
     }
 }

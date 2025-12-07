@@ -177,37 +177,10 @@ internal enum BTAppPrompts {
         self.runPrompt(alert: alert, window: window)
     }
 
-    static func promptInvalidResponse(window: NSWindow? = nil) {
-        let alert = NSAlert()
-        alert.messageText = BTLocalization.Prompts.invalidResponseMessage
-        alert.informativeText = BTLocalization.Prompts.invalidResponseInfo
-        alert.alertStyle = NSAlert.Style.warning
-        _ = alert.addButton(withTitle: BTLocalization.Prompts.ok)
-        self.runPrompt(alert: alert, window: window)
-    }
-
     static func promptOperationFailed(window: NSWindow? = nil, message: String? = nil) {
         let alert = NSAlert()
         alert.messageText = message ?? BTLocalization.Prompts.operationFailedMessage
         alert.informativeText = BTLocalization.Prompts.operationFailedInfo
-        alert.alertStyle = NSAlert.Style.warning
-        _ = alert.addButton(withTitle: BTLocalization.Prompts.ok)
-        self.runPrompt(alert: alert, window: window)
-    }
-
-    static func promptServiceUnavailable(window: NSWindow? = nil) {
-        let alert = NSAlert()
-        alert.messageText = BTLocalization.Prompts.serviceUnavailableMessage
-        alert.informativeText = BTLocalization.Prompts.serviceUnavailableInfo
-        alert.alertStyle = NSAlert.Style.warning
-        _ = alert.addButton(withTitle: BTLocalization.Prompts.ok)
-        self.runPrompt(alert: alert, window: window)
-    }
-
-    static func promptMalformedData(window: NSWindow? = nil) {
-        let alert = NSAlert()
-        alert.messageText = BTLocalization.Prompts.malformedDataMessage
-        alert.informativeText = BTLocalization.Prompts.malformedDataInfo
         alert.alertStyle = NSAlert.Style.warning
         _ = alert.addButton(withTitle: BTLocalization.Prompts.ok)
         self.runPrompt(alert: alert, window: window)
